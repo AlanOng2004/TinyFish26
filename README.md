@@ -1,1 +1,2 @@
-Nicholas not on Tan
+Database: PostgreSQL
+Frontend: Python
