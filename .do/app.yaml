@@ -1,0 +1,75 @@
+name: tinyfish26-stocks
+region: sgp
+alerts:
+  - rule: DEPLOYMENT_FAILED
+  - rule: DOMAIN_FAILED
+features:
+  - buildpack-stack=ubuntu-22
+ingress:
+  rules:
+    - component:
+        name: api
+      match:
+        path:
+          prefix: /api
+    - component:
+        name: website
+      match:
+        path:
+          prefix: /
+services:
+  - name: api
+    github:
+      repo: AlanOng2004/TinyFish26
+      branch: main
+      deploy_on_push: true
+    source_dir: backend
+    environment_slug: python
+    run_command: uvicorn app.main:app --host 0.0.0.0 --port 8080
+    http_port: 8080
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 20
+      period_seconds: 15
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 6
+    envs:
+      - key: ENVIRONMENT
+        value: production
+        scope: RUN_TIME
+        type: GENERAL
+      - key: DATABASE_URL
+        value: postgresql+psycopg://${db.USERNAME}:${db.PASSWORD}@${db.HOSTNAME}:${db.PORT}/${db.DATABASE}
+        scope: RUN_TIME
+        type: GENERAL
+      - key: SCHEDULER_MINUTES
+        value: "60"
+        scope: RUN_TIME
+        type: GENERAL
+static_sites:
+  - name: website
+    github:
+      repo: AlanOng2004/TinyFish26
+      branch: main
+      deploy_on_push: true
+    source_dir: frontend
+    environment_slug: node-js
+    build_command: npm ci && npm run build
+    output_dir: dist
+    index_document: index.html
+    catchall_document: index.html
+    envs:
+      - key: VITE_API_BASE_URL
+        value: /api
+        scope: BUILD_TIME
+        type: GENERAL
+databases:
+  - name: db
+    engine: PG
+    version: "16"
+    production: false
+    db_name: tinyfish26
+    db_user: tinyfish26

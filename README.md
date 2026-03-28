@@ -222,6 +222,63 @@ Frontend template:
 
 - `frontend/.env.example`
 
+## Deploy To DigitalOcean App Platform
+
+This repository is a `monorepo`, so DigitalOcean App Platform will not auto-detect it from the repo root.
+
+If App Platform shows `No components detected`, use one of these paths manually:
+
+- `frontend` for the static site
+- `backend` for the API web service
+
+A ready-to-use App Platform spec is included at:
+
+- `.do/app.yaml`
+
+That spec is useful for `doctl` or the App Spec editor, and it matches the recommended setup below.
+
+Recommended App Platform components:
+
+- `website`: Static Site using `frontend`
+- `api`: Web Service using `backend`
+- `db`: Managed PostgreSQL database
+
+Recommended runtime settings:
+
+- frontend build command: `npm ci && npm run build`
+- frontend output directory: `dist`
+- frontend build env: `VITE_API_BASE_URL=/api`
+- backend run command: `uvicorn app.main:app --host 0.0.0.0 --port 8080`
+- backend HTTP port: `8080`
+- backend health check: `/health`
+- backend instance count: `1`
+
+Keep the backend at a single instance for now. The current backend starts APScheduler inside the web process, so multiple API instances would create duplicate scheduled jobs.
+
+The app can boot without `OPENAI_API_KEY` or `TINYFISH_API_KEY`. If those keys are unset, the current code falls back to deterministic mock data, which is helpful for first-time deployment.
+
+Recommended App Platform flow:
+
+1. Create the app from this GitHub repo.
+2. Add `frontend` as a `Static Site`.
+3. Add `backend` as a `Web Service`.
+4. Add a managed PostgreSQL database.
+5. Set the frontend build-time env `VITE_API_BASE_URL=/api`.
+6. Set the backend runtime env `DATABASE_URL` to the managed Postgres connection string.
+7. Route `/api` to the backend and `/` to the static site.
+
+## Cloudflare Domain Setup For App Platform
+
+Because App Platform gives you a public app hostname, `stocks.thealan.net` should normally use a `CNAME`, not an `A` record.
+
+After the app is live in DigitalOcean:
+
+1. Add the custom domain `stocks.thealan.net` in the App Platform Networking tab.
+2. Copy the `*.ondigitalocean.app` target DigitalOcean gives you.
+3. In Cloudflare, create a `CNAME` record named `stocks` pointing to that DigitalOcean target.
+4. Start with Cloudflare `DNS only` while the domain verifies.
+5. After HTTPS is working, you can switch Cloudflare to `Proxied` if you want.
+
 ## Current Status
 
 Implemented:
