@@ -1,0 +1,9 @@
+tunnel: <TUNNEL-UUID>
+credentials-file: /Users/alanong/.cloudflared/<TUNNEL-UUID>.json
+
+ingress:
+  - hostname: stocks.thealan.net
+    service: http://127.0.0.1:4173
+  - hostname: api-stocks.thealan.net
+    service: http://127.0.0.1:8000
+  - service: http_status:404

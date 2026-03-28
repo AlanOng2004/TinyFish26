@@ -221,6 +221,72 @@ Backend template:
 Frontend template:
 
 - `frontend/.env.example`
+- `frontend/.env.production.example`
+
+## Publish With Cloudflare Tunnel
+
+If you want `stocks.thealan.net` to be publicly reachable from this machine without
+fighting a cloud deployment platform, you can publish the local app through
+Cloudflare Tunnel.
+
+Recommended public hostnames:
+
+- `stocks.thealan.net` for the frontend
+- `api-stocks.thealan.net` for the backend
+
+Templates for the tunnel live in:
+
+- `cloudflare/config.yml.example`
+- `cloudflare/README.md`
+
+### 1. Run the backend locally
+
+```bash
+cd backend
+source .venv/bin/activate
+PYTHONPATH=. python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+### 2. Build and preview the frontend locally
+
+```bash
+cd frontend
+cp .env.production.example .env.production
+npm install
+npm run build
+npm run preview:public
+```
+
+The production frontend build will call:
+
+- `https://api-stocks.thealan.net`
+
+### 3. Create and route the Cloudflare tunnel
+
+```bash
+cloudflared tunnel login
+cloudflared tunnel create stocks-site
+cloudflared tunnel route dns stocks-site stocks.thealan.net
+cloudflared tunnel route dns stocks-site api-stocks.thealan.net
+```
+
+Then copy `cloudflare/config.yml.example` to `~/.cloudflared/config.yml`, replace
+`<TUNNEL-UUID>`, and start the tunnel:
+
+```bash
+cloudflared tunnel run stocks-site
+```
+
+Once the tunnel is running:
+
+- `stocks.thealan.net` will serve the Vite preview frontend on `127.0.0.1:4173`
+- `api-stocks.thealan.net` will serve the FastAPI backend on `127.0.0.1:8000`
+
+### 4. Backend CORS note
+
+The backend already allows `https://stocks.thealan.net` as a frontend origin by
+default, so the frontend can call the API from the public hostname without extra code
+changes.
 
 ## Deploy To DigitalOcean App Platform
 
