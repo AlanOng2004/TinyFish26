@@ -10,14 +10,19 @@ from app.db.session import Base, check_database_connection, engine
 
 def create_app() -> FastAPI:
     settings = get_settings()
+    allowed_origins = list(
+        dict.fromkeys(
+            [
+                *settings.cors_origins,
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+            ]
+        )
+    )
     app = FastAPI(title="Autonomous Equity Analyst API", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_origins=[
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
