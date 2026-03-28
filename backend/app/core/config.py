@@ -9,9 +9,11 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/tinyfish26"
     openai_api_key: str = ""
     tinyfish_api_key: str = ""
-    tinyfish_base_url: str = "https://api.tinyfish.ai"
+    tinyfish_base_url: str = "https://agent.tinyfish.ai/v1"
     scheduler_minutes: int = 60
     enabled_tickers: list[str] = ["NVDA"]
+    tinyfish_proxy_country_code: str = "US"
+    tinyfish_browser_profile: str = "lite"
 
     model_config = SettingsConfigDict(
         env_file=".env",

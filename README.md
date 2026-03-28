@@ -232,22 +232,34 @@ Implemented:
 - Alembic scaffold
 - scheduled/manual run flow
 - persisted run history
+- TinyFish HTTP client with configurable source goals
 - frontend dashboard
 - API-backed frontend client
 
 Still placeholder:
 
-- real TinyFish API integration
 - real OpenAI sentiment extraction
 - real OpenAI memo generation
 - production-quality price/history sourcing
+
+## TinyFish Sources
+
+The current TinyFish source plan uses:
+
+- Bloomberg quote page for market snapshot
+- Yahoo Finance quote page for market snapshot and visible price context
+- Google Finance NVDA page for top news aggregation
+- CNBC NVDA page for company-specific news flow
+
+The service sends narrowly scoped extraction goals to TinyFish and expects structured JSON in the response `result`.
+
+If `TINYFISH_API_KEY` is not set, the backend falls back to mock data so the app remains runnable during UI development.
 
 ## Next Steps
 
 The next implementation step is to replace placeholders in:
 
-- `backend/app/services/tinyfish_client.py`
 - `backend/app/services/sentiment_analysis.py`
 - `backend/app/services/memo_generator.py`
 
-After that, the pipeline can be connected to real TinyFish responses and structured OpenAI outputs.
+After that, the pipeline can move from heuristic analysis to structured OpenAI-backed reasoning on top of the TinyFish-collected data.
