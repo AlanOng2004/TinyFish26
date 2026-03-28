@@ -18,6 +18,21 @@ def trigger_run(
     return run_batch_analysis(db=db, ticker=payload.ticker)
 
 
+@router.delete("")
+def reset_runs(
+    ticker: str = Query(default="NVDA", description="Ticker symbol"),
+    db: Session = Depends(get_db),
+) -> dict[str, int | str]:
+    runs = db.scalars(select(Run).where(Run.ticker == ticker)).all()
+    deleted_count = len(runs)
+
+    for run in runs:
+        db.delete(run)
+
+    db.commit()
+    return {"ticker": ticker, "deleted_runs": deleted_count}
+
+
 @router.get("/latest", response_model=RunDetailResponse)
 def get_latest_run(
     ticker: str = Query(default="NVDA", description="Ticker symbol"),

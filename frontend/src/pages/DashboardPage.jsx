@@ -5,6 +5,7 @@ import {
   fetchHealth,
   fetchLatestRun,
   fetchRunHistory,
+  resetRuns,
   triggerRun,
 } from "../api/client";
 import { HistoryChart } from "../charts/HistoryChart";
@@ -123,6 +124,31 @@ export function DashboardPage() {
   }, [ticker]);
 
   async function handleRefresh() {
+    setIsRefreshing(true);
+    setError("");
+
+    try {
+      await resetRuns(ticker);
+      const healthResult = await fetchHealth()
+        .then((payload) => buildHealthState(payload))
+        .catch(() => buildHealthState(null));
+
+      startTransition(() => {
+        setRun(null);
+        setHistory([]);
+        setHealth(healthResult);
+      });
+    } catch (resetError) {
+      setError(resetError.message);
+      startTransition(() => {
+        setHealth(buildHealthState(null));
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
+
+  async function handleTrigger() {
     setIsTriggering(true);
     setError("");
 
@@ -143,10 +169,6 @@ export function DashboardPage() {
     } finally {
       setIsTriggering(false);
     }
-  }
-
-  function handleReload() {
-    void loadDashboard(ticker, { refreshHealth: true });
   }
 
   if (loading) {
@@ -176,7 +198,7 @@ export function DashboardPage() {
 
   const catalystLabel = run
     ? formatList(run.sentiment.top_catalysts)
-    : "Refresh the board to identify the top catalysts.";
+    : "Run analysis to identify the top catalysts.";
   const sourceSummary = run
     ? `${run.diagnostics.source_success_count} success / ${run.diagnostics.source_failure_count} failed`
     : "Waiting for first run";
@@ -235,19 +257,19 @@ export function DashboardPage() {
               onClick={handleRefresh}
               disabled={isRefreshing || isTriggering}
             >
-              {isTriggering ? "Refreshing history..." : "Refresh board"}
+              {isRefreshing ? "Resetting board..." : "Refresh board"}
             </button>
             <button
               className="run-button"
-              onClick={handleReload}
+              onClick={handleTrigger}
               disabled={isTriggering || isRefreshing}
             >
-              {isRefreshing ? "Reloading board..." : "Reload saved board"}
+              {isTriggering ? "Generating run..." : "Run analysis"}
             </button>
           </div>
           <p className="control-note">
-            Refresh board creates a brand-new persisted run and updates stored history.
-            Reload saved board only re-reads the latest saved data from the backend.
+            Refresh board clears the stored history and resets the board state. Run
+            analysis creates a brand-new backend pass and stores it as the next run.
           </p>
         </section>
       </section>
@@ -262,7 +284,7 @@ export function DashboardPage() {
       {!run ? (
         <section className="panel empty-panel">
           <span className="section-kicker">No Analysis Yet</span>
-          <h2>Refresh the board to seed the first stored run.</h2>
+          <h2>Trigger the first run to seed the board.</h2>
           <p>
             The shell is ready, but there is no completed analysis payload for the
             selected ticker yet.
@@ -278,7 +300,7 @@ export function DashboardPage() {
             <article className="empty-step">
               <strong>2. Generate a run</strong>
               <p>
-                Use <span className="inline-chip">Refresh board</span> to create the first
+                Use <span className="inline-chip">Run analysis</span> to create the first
                 persisted result for NVDA.
               </p>
             </article>

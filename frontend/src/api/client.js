@@ -48,3 +48,9 @@ export async function triggerRun(ticker) {
     body: JSON.stringify({ ticker }),
   });
 }
+
+export async function resetRuns(ticker) {
+  return request(`/runs?ticker=${encodeURIComponent(ticker)}`, {
+    method: "DELETE",
+  });
+}
