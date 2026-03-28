@@ -122,7 +122,7 @@ export function DashboardPage() {
     void loadDashboard(ticker, { pageLoad: true, refreshHealth: true });
   }, [ticker]);
 
-  async function handleTrigger() {
+  async function handleRefresh() {
     setIsTriggering(true);
     setError("");
 
@@ -145,7 +145,7 @@ export function DashboardPage() {
     }
   }
 
-  function handleRefresh() {
+  function handleReload() {
     void loadDashboard(ticker, { refreshHealth: true });
   }
 
@@ -176,7 +176,7 @@ export function DashboardPage() {
 
   const catalystLabel = run
     ? formatList(run.sentiment.top_catalysts)
-    : "Run analysis to identify the top catalysts.";
+    : "Refresh the board to identify the top catalysts.";
   const sourceSummary = run
     ? `${run.diagnostics.source_success_count} success / ${run.diagnostics.source_failure_count} failed`
     : "Waiting for first run";
@@ -191,8 +191,8 @@ export function DashboardPage() {
               {health.label}
             </span>
           </div>
-          <p className="eyebrow">TinyFish Hackathon MVP</p>
-          <h1>Short-horizon equity readout built for live demo storytelling.</h1>
+          <p className="eyebrow">TinyFish Hackathon</p>
+          <h1>Short-horizon equity readout built for live demo.</h1>
           <p className="hero-copy">
             This dashboard assumes a remote backend at <code>{API_BASE_URL}</code> and
             turns each run into a clear stance, signal breakdown, history curve, and
@@ -235,19 +235,19 @@ export function DashboardPage() {
               onClick={handleRefresh}
               disabled={isRefreshing || isTriggering}
             >
-              {isRefreshing ? "Refreshing..." : "Refresh board"}
+              {isTriggering ? "Refreshing history..." : "Refresh board"}
             </button>
             <button
               className="run-button"
-              onClick={handleTrigger}
+              onClick={handleReload}
               disabled={isTriggering || isRefreshing}
             >
-              {isTriggering ? "Generating run..." : "Run analysis"}
+              {isRefreshing ? "Reloading board..." : "Reload saved board"}
             </button>
           </div>
           <p className="control-note">
-            Use the refresh action to pull the latest persisted run. Use run analysis when
-            you want a brand-new backend pass.
+            Refresh board creates a brand-new persisted run and updates stored history.
+            Reload saved board only re-reads the latest saved data from the backend.
           </p>
         </section>
       </section>
@@ -262,7 +262,7 @@ export function DashboardPage() {
       {!run ? (
         <section className="panel empty-panel">
           <span className="section-kicker">No Analysis Yet</span>
-          <h2>Trigger the first run to seed the board.</h2>
+          <h2>Refresh the board to seed the first stored run.</h2>
           <p>
             The shell is ready, but there is no completed analysis payload for the
             selected ticker yet.
@@ -278,7 +278,7 @@ export function DashboardPage() {
             <article className="empty-step">
               <strong>2. Generate a run</strong>
               <p>
-                Use <span className="inline-chip">Run analysis</span> to create the first
+                Use <span className="inline-chip">Refresh board</span> to create the first
                 persisted result for NVDA.
               </p>
             </article>
