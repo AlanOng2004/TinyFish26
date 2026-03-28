@@ -1,5 +1,6 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ?? "https://stocks.thealan.net"
+).replace(/\/$/, "");
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -10,13 +11,27 @@ async function request(path, options = {}) {
     ...options,
   });
 
+  const contentType = response.headers.get("content-type") ?? "";
+  const payload = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
   if (!response.ok) {
-    const error = new Error(`API request failed with status ${response.status}`);
+    const message =
+      payload?.detail ??
+      payload?.message ??
+      `API request failed with status ${response.status}`;
+    const error = new Error(message);
     error.status = response.status;
+    error.payload = payload;
     throw error;
   }
 
-  return response.json();
+  return payload;
+}
+
+export async function fetchHealth() {
+  return request("/health");
 }
 
 export async function fetchLatestRun(ticker) {

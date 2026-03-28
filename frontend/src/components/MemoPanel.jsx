@@ -1,30 +1,29 @@
 export function MemoPanel({ memo }) {
+  const sections = [
+    { title: "Thesis", body: memo.thesis },
+    { title: "Technical View", body: memo.technical_view },
+    { title: "News Sentiment View", body: memo.news_sentiment_view },
+    { title: "Historical Pattern View", body: memo.historical_pattern_view },
+    { title: "Risks", body: memo.risks },
+    { title: "Final Verdict", body: memo.final_verdict },
+  ];
+
   return (
     <section className="panel memo-panel">
-      <h2>Analyst Memo</h2>
-      <div>
-        <h3>Thesis</h3>
-        <p>{memo.thesis}</p>
+      <div className="section-heading">
+        <div>
+          <span className="section-kicker">Analyst Memo</span>
+          <h2>Reasoning trace</h2>
+        </div>
+        <p>Every run carries an explainable narrative instead of a bare score.</p>
       </div>
-      <div>
-        <h3>Technical View</h3>
-        <p>{memo.technical_view}</p>
-      </div>
-      <div>
-        <h3>News Sentiment View</h3>
-        <p>{memo.news_sentiment_view}</p>
-      </div>
-      <div>
-        <h3>Historical Pattern View</h3>
-        <p>{memo.historical_pattern_view}</p>
-      </div>
-      <div>
-        <h3>Risks</h3>
-        <p>{memo.risks}</p>
-      </div>
-      <div>
-        <h3>Final Verdict</h3>
-        <p>{memo.final_verdict}</p>
+      <div className="memo-grid">
+        {sections.map((section) => (
+          <article key={section.title} className="memo-section">
+            <h3>{section.title}</h3>
+            <p>{section.body || "Narrative unavailable for this run."}</p>
+          </article>
+        ))}
       </div>
     </section>
   );

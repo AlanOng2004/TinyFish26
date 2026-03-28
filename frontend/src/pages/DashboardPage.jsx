@@ -1,123 +1,362 @@
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useEffectEvent, useState } from "react";
 
-import { fetchLatestRun, fetchRunHistory, triggerRun } from "../api/client";
+import {
+  API_BASE_URL,
+  fetchHealth,
+  fetchLatestRun,
+  fetchRunHistory,
+  triggerRun,
+} from "../api/client";
 import { HistoryChart } from "../charts/HistoryChart";
 import { ArticleTable } from "../components/ArticleTable";
 import { MemoPanel } from "../components/MemoPanel";
 import { ScoreCard } from "../components/ScoreCard";
 import { TickerSelector } from "../components/TickerSelector";
+import {
+  formatConfidence,
+  formatList,
+  formatRelativeTime,
+  formatScore,
+  formatTimestamp,
+  getLabelTone,
+  getScoreTone,
+  titleCaseLabel,
+} from "../lib/formatters";
+
+function buildHealthState(payload) {
+  if (payload?.status === "ok") {
+    return {
+      state: "online",
+      label: "API online",
+      detail: "Connected to the remote stock analysis backend.",
+    };
+  }
+
+  return {
+    state: "offline",
+    label: "API unavailable",
+    detail: "The configured backend could not be reached from the browser.",
+  };
+}
 
 export function DashboardPage() {
   const [ticker, setTicker] = useState("NVDA");
   const [run, setRun] = useState(null);
   const [history, setHistory] = useState([]);
+  const [health, setHealth] = useState({
+    state: "checking",
+    label: "Checking API",
+    detail: "Verifying remote backend connectivity.",
+  });
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isTriggering, setIsTriggering] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
+  const loadDashboard = useEffectEvent(
+    async (nextTicker, { pageLoad = false, refreshHealth = false } = {}) => {
+      if (pageLoad) {
+        setLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
+
       setError("");
+
       try {
-        const historyItems = await fetchRunHistory(ticker);
-        setHistory(historyItems);
-        try {
-          const latest = await fetchLatestRun(ticker);
-          setRun(latest);
-        } catch (latestError) {
+        const healthPromise = refreshHealth
+          ? fetchHealth()
+              .then((payload) => buildHealthState(payload))
+              .catch(() => buildHealthState(null))
+          : Promise.resolve(null);
+
+        const historyPromise = fetchRunHistory(nextTicker);
+        const latestPromise = fetchLatestRun(nextTicker).catch((latestError) => {
           if (latestError.status === 404) {
-            setRun(null);
-          } else {
-            throw latestError;
+            return null;
           }
-        }
+
+          throw latestError;
+        });
+
+        const [healthResult, historyItems, latestRun] = await Promise.all([
+          healthPromise,
+          historyPromise,
+          latestPromise,
+        ]);
+
+        startTransition(() => {
+          if (healthResult) {
+            setHealth(healthResult);
+          }
+          setHistory(Array.isArray(historyItems) ? historyItems : []);
+          setRun(latestRun);
+        });
       } catch (loadError) {
         setError(loadError.message);
-      } finally {
-        setLoading(false);
-      }
-    }
 
-    load();
+        if (refreshHealth) {
+          startTransition(() => {
+            setHealth(buildHealthState(null));
+          });
+        }
+      } finally {
+        if (pageLoad) {
+          setLoading(false);
+        } else {
+          setIsRefreshing(false);
+        }
+      }
+    },
+  );
+
+  useEffect(() => {
+    void loadDashboard(ticker, { pageLoad: true, refreshHealth: true });
   }, [ticker]);
 
   async function handleTrigger() {
     setIsTriggering(true);
     setError("");
+
     try {
       const nextRun = await triggerRun(ticker);
-      setRun(nextRun);
       const nextHistory = await fetchRunHistory(ticker);
-      setHistory(nextHistory);
+
+      startTransition(() => {
+        setRun(nextRun);
+        setHistory(Array.isArray(nextHistory) ? nextHistory : []);
+        setHealth(buildHealthState({ status: "ok" }));
+      });
     } catch (triggerError) {
       setError(triggerError.message);
+      startTransition(() => {
+        setHealth(buildHealthState(null));
+      });
     } finally {
       setIsTriggering(false);
     }
   }
 
-  if (loading) {
-    return <main className="app-shell">Loading...</main>;
+  function handleRefresh() {
+    void loadDashboard(ticker, { refreshHealth: true });
   }
+
+  if (loading) {
+    return (
+      <main className="app-shell">
+        <section className="panel loading-panel">
+          <span className="section-kicker">Loading Dashboard</span>
+          <h1>Preparing the equity analyst workspace.</h1>
+          <p>
+            Pulling health, latest run, and stored history from the configured stock
+            backend.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  const lastRunLabel = run
+    ? `${formatTimestamp(run.run_timestamp, "full")} (${formatRelativeTime(
+        run.run_timestamp,
+      )})`
+    : "Waiting for the first completed run.";
+
+  const historyLabel = history.length
+    ? `${history.length} stored run${history.length === 1 ? "" : "s"}`
+    : "No stored history yet";
+
+  const catalystLabel = run
+    ? formatList(run.sentiment.top_catalysts)
+    : "Run analysis to identify the top catalysts.";
 
   return (
     <main className="app-shell">
       <section className="hero">
-        <div>
+        <section className="panel hero-copy-block">
+          <div className="hero-topline">
+            <p className="eyebrow">Stocks Control Room</p>
+            <span className={`status-pill status-pill-${health.state}`}>
+              {health.label}
+            </span>
+          </div>
           <p className="eyebrow">TinyFish Hackathon MVP</p>
-          <h1>Autonomous Equity Analyst</h1>
+          <h1>Short-horizon equity readout built for live demo storytelling.</h1>
           <p className="hero-copy">
-            Scheduled NVDA analysis that combines TinyFish web scraping, signal scoring,
-            and a structured analyst memo for a 1 to 2 week horizon.
+            This dashboard assumes a remote backend at <code>{API_BASE_URL}</code> and
+            turns each run into a clear stance, signal breakdown, history curve, and
+            memo you can walk through with confidence.
           </p>
-        </div>
-        <div className="hero-controls">
-          <TickerSelector value={ticker} onChange={setTicker} />
-          <button className="run-button" onClick={handleTrigger} disabled={isTriggering}>
-            {isTriggering ? "Running..." : "Run Analysis"}
-          </button>
-        </div>
+          <p className="hero-supporting-copy">{health.detail}</p>
+          <div className="hero-meta-grid">
+            <article className="hero-meta-card">
+              <span className="field-label">Active ticker</span>
+              <strong>{ticker}</strong>
+              <p>Current pilot universe for the frontend and backend flow.</p>
+            </article>
+            <article className="hero-meta-card">
+              <span className="field-label">Latest completed run</span>
+              <strong>{run ? formatRelativeTime(run.run_timestamp) : "Not seeded yet"}</strong>
+              <p>{lastRunLabel}</p>
+            </article>
+            <article className="hero-meta-card">
+              <span className="field-label">Stored history</span>
+              <strong>{history.length}</strong>
+              <p>{historyLabel}</p>
+            </article>
+          </div>
+        </section>
+
+        <section className="panel hero-controls">
+          <TickerSelector
+            value={ticker}
+            onChange={setTicker}
+            disabled={isRefreshing || isTriggering}
+          />
+          <div className="button-row">
+            <button
+              className="ghost-button"
+              onClick={handleRefresh}
+              disabled={isRefreshing || isTriggering}
+            >
+              {isRefreshing ? "Refreshing..." : "Refresh board"}
+            </button>
+            <button
+              className="run-button"
+              onClick={handleTrigger}
+              disabled={isTriggering || isRefreshing}
+            >
+              {isTriggering ? "Generating run..." : "Run analysis"}
+            </button>
+          </div>
+          <p className="control-note">
+            Use the refresh action to pull the latest persisted run. Use run analysis when
+            you want a brand-new backend pass.
+          </p>
+        </section>
       </section>
 
-      {error ? <section className="panel error-panel">{error}</section> : null}
+      {error ? (
+        <section className="panel notice-panel notice-error">
+          <span className="section-kicker">API Message</span>
+          <p>{error}</p>
+        </section>
+      ) : null}
 
       {!run ? (
         <section className="panel empty-panel">
-          <h2>No Analysis Yet</h2>
-          <p>Trigger the first NVDA batch run to populate the dashboard.</p>
+          <span className="section-kicker">No Analysis Yet</span>
+          <h2>Trigger the first run to seed the board.</h2>
+          <p>
+            The shell is ready, but there is no completed analysis payload for the
+            selected ticker yet.
+          </p>
+          <div className="empty-grid">
+            <article className="empty-step">
+              <strong>1. Confirm backend reachability</strong>
+              <p>
+                The health badge above should say the API is online if the browser can
+                reach <code>{API_BASE_URL}</code>.
+              </p>
+            </article>
+            <article className="empty-step">
+              <strong>2. Generate a run</strong>
+              <p>
+                Use <span className="inline-chip">Run analysis</span> to create the first
+                persisted result for NVDA.
+              </p>
+            </article>
+            <article className="empty-step">
+              <strong>3. Review the storytelling layer</strong>
+              <p>
+                Once a run lands, the memo, chart, and article cards will populate
+                automatically.
+              </p>
+            </article>
+          </div>
         </section>
       ) : (
         <>
-      <section className="score-grid">
-        <ScoreCard
-          title="Discrepancy Score"
-          value={run.final_assessment.discrepancy_score}
-          subtitle={run.final_assessment.stance.replaceAll("_", " ")}
-        />
-        <ScoreCard
-          title="Technical Score"
-          value={run.technical.score}
-          subtitle={`MA ${run.technical.short_ma} / ${run.technical.long_ma}, RSI ${run.technical.rsi}`}
-        />
-        <ScoreCard
-          title="Sentiment Score"
-          value={run.sentiment.score}
-          subtitle={run.sentiment.top_catalysts.join(", ")}
-        />
-        <ScoreCard
-          title="Historical Score"
-          value={run.historical.score}
-          subtitle={run.historical.matched_pattern.replaceAll("_", " ")}
-        />
-      </section>
+          <section className="score-grid">
+            <ScoreCard
+              eyebrow="Master Signal"
+              title="Discrepancy score"
+              value={formatScore(run.final_assessment.discrepancy_score)}
+              subtitle={titleCaseLabel(run.final_assessment.stance)}
+              detail={`Confidence ${formatConfidence(
+                run.final_assessment.confidence,
+              )} • ${historyLabel}`}
+              meterValue={run.final_assessment.discrepancy_score}
+              tone={getLabelTone(run.final_assessment.stance)}
+              featured
+            />
+            <ScoreCard
+              eyebrow="Technical"
+              title="Momentum stack"
+              value={formatScore(run.technical.score)}
+              subtitle={titleCaseLabel(run.technical.label)}
+              detail={`Short MA ${formatScore(run.technical.short_ma)} / Long MA ${formatScore(
+                run.technical.long_ma,
+              )} • RSI ${formatScore(run.technical.rsi)}`}
+              meterValue={run.technical.score}
+              tone={getLabelTone(run.technical.label)}
+            />
+            <ScoreCard
+              eyebrow="Sentiment"
+              title="News pressure"
+              value={formatScore(run.sentiment.score)}
+              subtitle={titleCaseLabel(run.sentiment.label)}
+              detail={catalystLabel}
+              meterValue={run.sentiment.score}
+              tone={getLabelTone(run.sentiment.label)}
+            />
+            <ScoreCard
+              eyebrow="Historical"
+              title="Pattern match"
+              value={formatScore(run.historical.score)}
+              subtitle={titleCaseLabel(run.historical.label)}
+              detail={titleCaseLabel(run.historical.matched_pattern)}
+              meterValue={run.historical.score}
+              tone={getLabelTone(run.historical.label)}
+            />
+            <ScoreCard
+              eyebrow="Confidence"
+              title="Decision quality"
+              value={formatConfidence(run.final_assessment.confidence)}
+              subtitle="Memo confidence"
+              detail={`Run #${run.id} • ${formatTimestamp(run.run_timestamp)}`}
+              meterValue={run.final_assessment.confidence * 100}
+              tone={getScoreTone(run.final_assessment.discrepancy_score)}
+            />
+          </section>
 
-      <section className="content-grid">
-        <MemoPanel memo={run.memo} />
-        <HistoryChart data={history} />
-      </section>
+          <section className="insight-grid">
+            <article
+              className="panel insight-card"
+              data-tone={getLabelTone(run.final_assessment.stance)}
+            >
+              <span className="section-kicker">Current stance</span>
+              <h2>{titleCaseLabel(run.final_assessment.stance)}</h2>
+              <p>{run.memo.final_verdict}</p>
+            </article>
+            <article className="panel insight-card">
+              <span className="section-kicker">Catalyst radar</span>
+              <h2>{formatList(run.sentiment.top_catalysts)}</h2>
+              <p>{run.memo.news_sentiment_view}</p>
+            </article>
+            <article className="panel insight-card">
+              <span className="section-kicker">Historical setup</span>
+              <h2>{titleCaseLabel(run.historical.matched_pattern)}</h2>
+              <p>{run.historical.rationale}</p>
+            </article>
+          </section>
 
-      <ArticleTable articles={run.articles} />
+          <section className="content-grid">
+            <MemoPanel memo={run.memo} />
+            <HistoryChart data={history} />
+          </section>
+
+          <ArticleTable articles={run.articles} />
         </>
       )}
     </main>
