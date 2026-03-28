@@ -233,22 +233,24 @@ Implemented:
 - scheduled/manual run flow
 - persisted run history
 - TinyFish HTTP client with configurable source goals
+- OpenAI-backed structured sentiment and memo services with deterministic fallback
 - frontend dashboard
 - API-backed frontend client
 
 Still placeholder:
 
-- real OpenAI sentiment extraction
-- real OpenAI memo generation
 - production-quality price/history sourcing
 
 ## TinyFish Sources
 
 The current TinyFish source plan uses:
 
-- Bloomberg quote page for market snapshot
 - Yahoo Finance quote page for market snapshot and visible price context
 - Google Finance NVDA page for top news aggregation
+
+Optional sources kept in code but disabled by default for faster live demo runs:
+
+- Bloomberg quote page for market snapshot
 - CNBC NVDA page for company-specific news flow
 
 The service sends narrowly scoped extraction goals to TinyFish and expects structured JSON in the response `result`.
@@ -257,9 +259,4 @@ If `TINYFISH_API_KEY` is not set, the backend falls back to mock data so the app
 
 ## Next Steps
 
-The next implementation step is to replace placeholders in:
-
-- `backend/app/services/sentiment_analysis.py`
-- `backend/app/services/memo_generator.py`
-
-After that, the pipeline can move from heuristic analysis to structured OpenAI-backed reasoning on top of the TinyFish-collected data.
+The next implementation step is improving price-history quality and tightening the technical-analysis input source so moving averages and RSI rely on stronger market data than whatever is visible on scraped pages.
