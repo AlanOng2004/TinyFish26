@@ -156,7 +156,7 @@ code {
 
 .hero-meta-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin-top: 24px;
 }
@@ -268,6 +268,11 @@ select:disabled {
 .status-pill-online {
   color: var(--positive);
   background: rgba(21, 127, 91, 0.12);
+}
+
+.status-pill-warning {
+  color: #9a6100;
+  background: rgba(255, 140, 66, 0.16);
 }
 
 .status-pill-offline {
@@ -436,6 +441,94 @@ select:disabled {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(0, 1.15fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.diagnostic-panel {
+  padding: 22px;
+}
+
+.diagnostic-panel h2 {
+  margin: 8px 0 16px;
+  font-size: 1.55rem;
+  letter-spacing: -0.04em;
+}
+
+.diagnostic-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.diagnostic-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(16, 32, 51, 0.08);
+}
+
+.diagnostic-list dt,
+.diagnostic-note,
+.source-run-card p {
+  color: var(--ink-soft);
+}
+
+.diagnostic-list dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.diagnostic-note {
+  margin: 14px 0 0;
+}
+
+.source-run-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.source-run-card {
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(16, 32, 51, 0.08);
+}
+
+.source-run-card[data-status="completed"] {
+  border-color: rgba(21, 127, 91, 0.18);
+}
+
+.source-run-card[data-status="failed"] {
+  border-color: rgba(166, 61, 64, 0.18);
+}
+
+.source-run-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.source-run-card p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.source-run-card p + p {
+  margin-top: 6px;
+}
+
+.source-run-error {
+  color: var(--negative);
 }
 
 .insight-card {
@@ -644,10 +737,12 @@ select:disabled {
 @media (max-width: 1120px) {
   .hero,
   .content-grid,
+  .diagnostics-grid,
   .insight-grid,
   .hero-meta-grid,
   .article-list,
-  .memo-grid {
+  .memo-grid,
+  .source-run-list {
     grid-template-columns: 1fr;
   }
 

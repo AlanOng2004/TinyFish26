@@ -28,7 +28,15 @@ function buildHealthState(payload) {
     return {
       state: "online",
       label: "API online",
-      detail: "Connected to the remote stock analysis backend.",
+      detail: "Connected to the remote stock analysis backend and database.",
+    };
+  }
+
+  if (payload?.status === "degraded") {
+    return {
+      state: "warning",
+      label: "Backend degraded",
+      detail: payload?.database?.detail ?? "The backend is reachable, but its database is unhealthy.",
     };
   }
 
@@ -169,6 +177,9 @@ export function DashboardPage() {
   const catalystLabel = run
     ? formatList(run.sentiment.top_catalysts)
     : "Run analysis to identify the top catalysts.";
+  const sourceSummary = run
+    ? `${run.diagnostics.source_success_count} success / ${run.diagnostics.source_failure_count} failed`
+    : "Waiting for first run";
 
   return (
     <main className="app-shell">
@@ -203,6 +214,11 @@ export function DashboardPage() {
               <span className="field-label">Stored history</span>
               <strong>{history.length}</strong>
               <p>{historyLabel}</p>
+            </article>
+            <article className="hero-meta-card">
+              <span className="field-label">Source health</span>
+              <strong>{run ? sourceSummary : "Not available"}</strong>
+              <p>Tracks TinyFish source completion and failure pressure per run.</p>
             </article>
           </div>
         </section>
@@ -297,7 +313,7 @@ export function DashboardPage() {
               subtitle={titleCaseLabel(run.technical.label)}
               detail={`Short MA ${formatScore(run.technical.short_ma)} / Long MA ${formatScore(
                 run.technical.long_ma,
-              )} • RSI ${formatScore(run.technical.rsi)}`}
+              )} • RSI ${formatScore(run.technical.rsi)} • ${run.technical.price_points} price points`}
               meterValue={run.technical.score}
               tone={getLabelTone(run.technical.label)}
             />
@@ -324,10 +340,71 @@ export function DashboardPage() {
               title="Decision quality"
               value={formatConfidence(run.final_assessment.confidence)}
               subtitle="Memo confidence"
-              detail={`Run #${run.id} • ${formatTimestamp(run.run_timestamp)}`}
+              detail={`${titleCaseLabel(run.technical.data_quality)} technical data • ${sourceSummary}`}
               meterValue={run.final_assessment.confidence * 100}
               tone={getScoreTone(run.final_assessment.discrepancy_score)}
             />
+          </section>
+
+          <section className="diagnostics-grid">
+            <article className="panel diagnostic-panel">
+              <span className="section-kicker">Run diagnostics</span>
+              <h2>Confidence inputs</h2>
+              <dl className="diagnostic-list">
+                <div>
+                  <dt>Technical data quality</dt>
+                  <dd>{titleCaseLabel(run.diagnostics.technical_data_quality)}</dd>
+                </div>
+                <div>
+                  <dt>Price points</dt>
+                  <dd>{run.diagnostics.price_point_count}</dd>
+                </div>
+                <div>
+                  <dt>Sentiment mode</dt>
+                  <dd>{titleCaseLabel(run.diagnostics.sentiment_mode)}</dd>
+                </div>
+                <div>
+                  <dt>Memo mode</dt>
+                  <dd>{titleCaseLabel(run.diagnostics.memo_mode)}</dd>
+                </div>
+              </dl>
+              {run.diagnostics.fallback_reason ? (
+                <p className="diagnostic-note">
+                  Fallback reason: {titleCaseLabel(run.diagnostics.fallback_reason)}
+                </p>
+              ) : null}
+            </article>
+
+            <article className="panel diagnostic-panel">
+              <span className="section-kicker">TinyFish sources</span>
+              <h2>Collection status</h2>
+              <div className="source-run-list">
+                {run.source_runs.map((sourceRun) => (
+                  <article
+                    key={`${sourceRun.source_name}-${sourceRun.status}-${sourceRun.started_at ?? "na"}`}
+                    className="source-run-card"
+                    data-status={sourceRun.status}
+                  >
+                    <div className="source-run-topline">
+                      <strong>{titleCaseLabel(sourceRun.source_name)}</strong>
+                      <span>{titleCaseLabel(sourceRun.status)}</span>
+                    </div>
+                    <p>
+                      {sourceRun.article_count} articles • {sourceRun.price_point_count} price
+                      points
+                    </p>
+                    <p>
+                      {sourceRun.finished_at
+                        ? `Completed ${formatRelativeTime(sourceRun.finished_at)}`
+                        : "No completion timestamp"}
+                    </p>
+                    {sourceRun.error_message ? (
+                      <p className="source-run-error">{sourceRun.error_message}</p>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            </article>
           </section>
 
           <section className="insight-grid">

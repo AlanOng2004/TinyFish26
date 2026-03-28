@@ -24,6 +24,8 @@ class TechnicalAssessment(BaseModel):
     rsi: float
     score: float
     label: Literal["bullish", "bearish", "neutral"]
+    price_points: int
+    data_quality: Literal["strong", "usable", "limited", "insufficient"]
 
 
 class SentimentAssessment(BaseModel):
@@ -54,6 +56,27 @@ class MemoSection(BaseModel):
     final_verdict: str
 
 
+class SourceRunItem(BaseModel):
+    source_name: str
+    status: Literal["completed", "failed", "fallback"]
+    started_at: datetime | None
+    finished_at: datetime | None
+    num_of_steps: int | None
+    article_count: int
+    price_point_count: int
+    error_message: str | None
+
+
+class RunDiagnostics(BaseModel):
+    source_success_count: int
+    source_failure_count: int
+    price_point_count: int
+    technical_data_quality: Literal["strong", "usable", "limited", "insufficient"]
+    sentiment_mode: str
+    memo_mode: str
+    fallback_reason: str | None
+
+
 class RunDetailResponse(BaseModel):
     id: int
     ticker: str
@@ -64,6 +87,8 @@ class RunDetailResponse(BaseModel):
     historical: HistoricalAssessmentView
     final_assessment: FinalAssessment
     memo: MemoSection
+    source_runs: list[SourceRunItem]
+    diagnostics: RunDiagnostics
 
 
 class RunHistoryItem(BaseModel):

@@ -40,4 +40,5 @@ def score_news_sentiment(articles: list[dict]) -> dict:
         "score": score_map[dominant],
         "label": dominant,
         "top_catalysts": list(dict.fromkeys(catalysts))[:3],
+        "mode": "heuristic",
     }

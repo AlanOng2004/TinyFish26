@@ -38,3 +38,14 @@ class Run(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    diagnostic = relationship(
+        "RunDiagnostic",
+        back_populates="run",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    source_runs = relationship(
+        "SourceRun",
+        back_populates="run",
+        cascade="all, delete-orphan",
+    )

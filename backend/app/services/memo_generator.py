@@ -12,4 +12,5 @@ def generate_structured_memo(
         "historical_pattern_view": f"The current setup most closely matches '{historical['matched_pattern']}', which is interpreted as {historical['label']}. {historical['rationale']}",
         "risks": "This MVP relies on scraped web context and heuristic scoring, so missing articles, incomplete price history, or noisy catalysts may distort the 1 to 2 week view.",
         "final_verdict": f"Final discrepancy score is {final_assessment['discrepancy_score']}, with confidence {final_assessment['confidence']}. Current stance: {final_assessment['stance'].replace('_', ' ')}.",
+        "mode": "template",
     }

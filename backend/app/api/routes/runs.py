@@ -29,6 +29,8 @@ def get_latest_run(
             selectinload(Run.articles),
             selectinload(Run.technical_snapshot),
             selectinload(Run.historical_assessment),
+            selectinload(Run.diagnostic),
+            selectinload(Run.source_runs),
         )
         .where(Run.ticker == ticker)
         .order_by(Run.run_timestamp.desc())
@@ -66,6 +68,8 @@ def get_run_by_id(run_id: int, db: Session = Depends(get_db)) -> RunDetailRespon
             selectinload(Run.articles),
             selectinload(Run.technical_snapshot),
             selectinload(Run.historical_assessment),
+            selectinload(Run.diagnostic),
+            selectinload(Run.source_runs),
         )
         .where(Run.id == run_id)
     )
