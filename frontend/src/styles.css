@@ -85,6 +85,11 @@ select {
   cursor: pointer;
 }
 
+.run-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .score-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -139,6 +144,16 @@ select {
   text-align: left;
   padding: 12px 8px;
   border-bottom: 1px solid rgba(16, 42, 67, 0.08);
+}
+
+.error-panel {
+  margin-bottom: 16px;
+  color: #8a1c1c;
+  border-color: rgba(138, 28, 28, 0.2);
+}
+
+.empty-panel {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 900px) {

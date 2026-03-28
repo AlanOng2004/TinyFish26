@@ -1,8 +1,9 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from app.api.routes.runs import seed_placeholder_history
 from app.core.config import get_settings
+from app.db.session import SessionLocal
+from app.services.batch_runner import run_batch_analysis
 
 _scheduler: BackgroundScheduler | None = None
 
@@ -16,7 +17,7 @@ def start_scheduler() -> None:
     settings = get_settings()
     _scheduler = BackgroundScheduler(timezone="UTC")
     _scheduler.add_job(
-        seed_placeholder_history,
+        scheduled_batch_job,
         trigger=IntervalTrigger(minutes=settings.scheduler_minutes),
         id="scheduled-nvda-batch",
         replace_existing=True,
@@ -32,3 +33,11 @@ def stop_scheduler() -> None:
 
     _scheduler.shutdown(wait=False)
     _scheduler = None
+
+
+def scheduled_batch_job() -> None:
+    db = SessionLocal()
+    try:
+        run_batch_analysis(db=db, ticker="NVDA")
+    finally:
+        db.close()

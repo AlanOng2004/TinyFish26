@@ -1,70 +1,74 @@
-from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
-from fastapi import APIRouter, HTTPException, Query
-
+from app.db.session import get_db
+from app.models.run import Run
 from app.schemas.run import RunDetailResponse, RunHistoryItem, TriggerRunRequest
-from app.services.batch_runner import run_batch_analysis
+from app.services.batch_runner import build_run_response, run_batch_analysis
 
 router = APIRouter()
 
-_latest_run: RunDetailResponse | None = None
-_run_history: list[RunHistoryItem] = []
-
 
 @router.post("/trigger", response_model=RunDetailResponse)
-def trigger_run(payload: TriggerRunRequest) -> RunDetailResponse:
-    global _latest_run
-
-    result = run_batch_analysis(ticker=payload.ticker)
-    _latest_run = result
-    _run_history.append(
-        RunHistoryItem(
-            run_id=result.id,
-            ticker=result.ticker,
-            run_timestamp=result.run_timestamp,
-            discrepancy_score=result.final_assessment.discrepancy_score,
-            stance=result.final_assessment.stance,
-        )
-    )
-    return result
+def trigger_run(
+    payload: TriggerRunRequest,
+    db: Session = Depends(get_db),
+) -> RunDetailResponse:
+    return run_batch_analysis(db=db, ticker=payload.ticker)
 
 
 @router.get("/latest", response_model=RunDetailResponse)
 def get_latest_run(
-    ticker: str = Query(default="NVDA", description="Ticker symbol")
+    ticker: str = Query(default="NVDA", description="Ticker symbol"),
+    db: Session = Depends(get_db),
 ) -> RunDetailResponse:
-    if _latest_run is None or _latest_run.ticker != ticker:
+    run = db.scalar(
+        select(Run)
+        .options(
+            selectinload(Run.articles),
+            selectinload(Run.technical_snapshot),
+            selectinload(Run.historical_assessment),
+        )
+        .where(Run.ticker == ticker)
+        .order_by(Run.run_timestamp.desc())
+    )
+    if run is None:
         raise HTTPException(status_code=404, detail="No run found for ticker")
-    return _latest_run
+    return build_run_response(run)
 
 
 @router.get("/history", response_model=list[RunHistoryItem])
 def get_run_history(
-    ticker: str = Query(default="NVDA", description="Ticker symbol")
+    ticker: str = Query(default="NVDA", description="Ticker symbol"),
+    db: Session = Depends(get_db),
 ) -> list[RunHistoryItem]:
-    return [item for item in _run_history if item.ticker == ticker]
+    runs = db.scalars(
+        select(Run).where(Run.ticker == ticker).order_by(Run.run_timestamp.asc())
+    ).all()
+    return [
+        RunHistoryItem(
+            run_id=run.id,
+            ticker=run.ticker,
+            run_timestamp=run.run_timestamp,
+            discrepancy_score=run.discrepancy_score,
+            stance=run.stance,
+        )
+        for run in runs
+    ]
 
 
 @router.get("/{run_id}", response_model=RunDetailResponse)
-def get_run_by_id(run_id: int) -> RunDetailResponse:
-    if _latest_run is None or _latest_run.id != run_id:
-        raise HTTPException(status_code=404, detail="Run not found")
-    return _latest_run
-
-
-def seed_placeholder_history() -> None:
-    global _latest_run
-
-    seeded = run_batch_analysis("NVDA")
-    seeded.run_timestamp = datetime.now(timezone.utc)
-    _latest_run = seeded
-    _run_history.clear()
-    _run_history.append(
-        RunHistoryItem(
-            run_id=seeded.id,
-            ticker=seeded.ticker,
-            run_timestamp=seeded.run_timestamp,
-            discrepancy_score=seeded.final_assessment.discrepancy_score,
-            stance=seeded.final_assessment.stance,
+def get_run_by_id(run_id: int, db: Session = Depends(get_db)) -> RunDetailResponse:
+    run = db.scalar(
+        select(Run)
+        .options(
+            selectinload(Run.articles),
+            selectinload(Run.technical_snapshot),
+            selectinload(Run.historical_assessment),
         )
+        .where(Run.id == run_id)
     )
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return build_run_response(run)

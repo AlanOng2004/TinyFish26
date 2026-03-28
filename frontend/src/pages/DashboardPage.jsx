@@ -11,36 +11,53 @@ export function DashboardPage() {
   const [ticker, setTicker] = useState("NVDA");
   const [run, setRun] = useState(null);
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isTriggering, setIsTriggering] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
-      const [latest, historyItems] = await Promise.all([
-        fetchLatestRun(ticker),
-        fetchRunHistory(ticker),
-      ]);
-      setRun(latest);
-      setHistory(historyItems);
+      setLoading(true);
+      setError("");
+      try {
+        const historyItems = await fetchRunHistory(ticker);
+        setHistory(historyItems);
+        try {
+          const latest = await fetchLatestRun(ticker);
+          setRun(latest);
+        } catch (latestError) {
+          if (latestError.status === 404) {
+            setRun(null);
+          } else {
+            throw latestError;
+          }
+        }
+      } catch (loadError) {
+        setError(loadError.message);
+      } finally {
+        setLoading(false);
+      }
     }
 
     load();
   }, [ticker]);
 
   async function handleTrigger() {
-    const nextRun = await triggerRun(ticker);
-    setRun(nextRun);
-    setHistory((current) => [
-      ...current,
-      {
-        run_id: nextRun.id,
-        ticker: nextRun.ticker,
-        run_timestamp: nextRun.run_timestamp,
-        discrepancy_score: nextRun.final_assessment.discrepancy_score,
-        stance: nextRun.final_assessment.stance,
-      },
-    ]);
+    setIsTriggering(true);
+    setError("");
+    try {
+      const nextRun = await triggerRun(ticker);
+      setRun(nextRun);
+      const nextHistory = await fetchRunHistory(ticker);
+      setHistory(nextHistory);
+    } catch (triggerError) {
+      setError(triggerError.message);
+    } finally {
+      setIsTriggering(false);
+    }
   }
 
-  if (!run) {
+  if (loading) {
     return <main className="app-shell">Loading...</main>;
   }
 
@@ -57,12 +74,21 @@ export function DashboardPage() {
         </div>
         <div className="hero-controls">
           <TickerSelector value={ticker} onChange={setTicker} />
-          <button className="run-button" onClick={handleTrigger}>
-            Run Analysis
+          <button className="run-button" onClick={handleTrigger} disabled={isTriggering}>
+            {isTriggering ? "Running..." : "Run Analysis"}
           </button>
         </div>
       </section>
 
+      {error ? <section className="panel error-panel">{error}</section> : null}
+
+      {!run ? (
+        <section className="panel empty-panel">
+          <h2>No Analysis Yet</h2>
+          <p>Trigger the first NVDA batch run to populate the dashboard.</p>
+        </section>
+      ) : (
+        <>
       <section className="score-grid">
         <ScoreCard
           title="Discrepancy Score"
@@ -92,6 +118,8 @@ export function DashboardPage() {
       </section>
 
       <ArticleTable articles={run.articles} />
+        </>
+      )}
     </main>
   );
 }
